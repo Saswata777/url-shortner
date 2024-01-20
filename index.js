@@ -1,8 +1,10 @@
 const express = require("express");
+const path = require("path");
 const { connectTomongoDb } = require('./connect.js');
 const app = express();
 const urlroute = require('./routes/url.js');
 const URL = require('./modules/url.js')
+const staticRoute = require('./routes/staticRouter.js');
 
 const PORT = 8001;
 
@@ -11,9 +13,21 @@ connectTomongoDb('mongodb://127.0.0.1:27017/short-url')
         console.log("MongoDb connected");
     })
 
+app.set("view engine", "ejs");
+app.set("views", path.resolve("./views"));
+
 app.use(express.json());
+app.use(express.urlencoded({extended:false}));
 
 app.use("/url", urlroute);
+app.use("/", staticRoute);
+
+app.get("/test", async (req, res)=>{
+    const allUrls = await URL.find({});
+    return res.render('home',{
+        urls :allUrls
+    });
+});
 
 app.get('/:shortId', async (req, res) => {
     const shortId = req.params.shortId;
@@ -24,9 +38,15 @@ app.get('/:shortId', async (req, res) => {
             visitHistory: {
                 timestamp: Date.now()
             },
-        }
+        },
     })
-    res.redirect(entry.longUrl);
+    // res.redirect(entry.longUrl);
+    if (entry && entry.longUrl) {
+        res.redirect(entry.longUrl);
+    } else {
+        // Handle the case when entry is not found or does not have a longUrl
+        res.status(404).send("URL not found");
+    }
 })
 
 
